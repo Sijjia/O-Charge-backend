@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Логирование ошибок OCPP — Red Petroleum EV</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --red: #f85149;
+    --orange: #d29922;
+    --green: #3fb950;
+    --purple: #bc8cff;
+    --cyan: #39d2c0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 24px;
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #fff;
+  }
+
+  h1 span { color: var(--red); }
+
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+
+  h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 32px 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  h2 .badge {
+    font-size: 11px;
+    background: var(--accent);
+    color: var(--bg);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+
+  /* Tab system */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Comparison */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 900px) {
+    .compare { grid-template-columns: 1fr; }
+  }
+
+  .compare-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .compare-header {
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .compare-header.before {
+    background: rgba(248, 81, 73, 0.1);
+    color: var(--red);
+  }
+
+  .compare-header.after {
+    background: rgba(63, 185, 80, 0.1);
+    color: var(--green);
+  }
+
+  /* Log entries */
+  .log-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: rgba(88, 166, 255, 0.05);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .log-entry {
+    padding: 8px 16px;
+    font-size: 12.5px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .log-entry:last-child { border-bottom: none; }
+
+  .log-entry.error { border-left: 3px solid var(--red); }
+  .log-entry.warn { border-left: 3px solid var(--orange); }
+  .log-entry.info { border-left: 3px solid var(--accent); }
+  .log-entry.debug { border-left: 3px solid var(--text-muted); }
+
+  .log-ts { color: var(--text-muted); }
+  .log-level-error { color: var(--red); font-weight: 700; }
+  .log-level-warn { color: var(--orange); font-weight: 700; }
+  .log-level-info { color: var(--accent); }
+  .log-cat { color: var(--purple); font-weight: 600; }
+  .log-station { color: var(--cyan); }
+  .log-dim { color: var(--text-muted); }
+  .log-highlight { color: #fff; font-weight: 600; }
+
+  .traceback {
+    color: var(--text-muted);
+    font-size: 11.5px;
+    padding: 6px 16px 6px 19px;
+    background: rgba(248, 81, 73, 0.03);
+    border-left: 3px solid var(--red);
+  }
+
+  .traceback .tb-file { color: var(--orange); }
+  .traceback .tb-line { color: var(--cyan); }
+  .traceback .tb-func { color: var(--purple); }
+  .traceback .tb-exc { color: var(--red); font-weight: 600; }
+
+  /* DB Table */
+  .db-table-wrap {
+    overflow-x: auto;
+    margin-bottom: 16px;
+  }
+
+  table.db {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  table.db th {
+    background: rgba(88, 166, 255, 0.08);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  table.db td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.4);
+    vertical-align: top;
+  }
+
+  table.db tr:last-child td { border-bottom: none; }
+
+  table.db .null { color: var(--text-muted); font-style: italic; }
+  table.db .sev-error { color: var(--red); font-weight: 600; }
+  table.db .sev-info { color: var(--green); }
+  table.db .sev-warn { color: var(--orange); }
+
+  .error-cell {
+    color: var(--red);
+    max-width: 400px;
+    word-break: break-word;
+  }
+
+  .status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .status-error {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--red);
+  }
+
+  .status-stopped {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--green);
+  }
+
+  .status-started {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent);
+  }
+
+  /* Stats bar */
+  .stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 24px;
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .stat-card .label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .stat-card .value {
+    font-size: 28px;
+    font-weight: 700;
+  }
+
+  .stat-card .value.red { color: var(--red); }
+  .stat-card .value.green { color: var(--green); }
+  .stat-card .value.orange { color: var(--orange); }
+  .stat-card .value.accent { color: var(--accent); }
+
+  .stat-card .detail {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* Category legend */
+  .categories {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 12px 0 20px;
+  }
+
+  .cat-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .cat-tag .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .cat-redis { background: rgba(248, 81, 73, 0.1); color: var(--red); }
+  .cat-redis .dot { background: var(--red); }
+  .cat-db { background: rgba(210, 153, 34, 0.1); color: var(--orange); }
+  .cat-db .dot { background: var(--orange); }
+  .cat-validation { background: rgba(188, 140, 255, 0.1); color: var(--purple); }
+  .cat-validation .dot { background: var(--purple); }
+  .cat-financial { background: rgba(57, 210, 192, 0.1); color: var(--cyan); }
+  .cat-financial .dot { background: var(--cyan); }
+  .cat-connection { background: rgba(88, 166, 255, 0.1); color: var(--accent); }
+  .cat-connection .dot { background: var(--accent); }
+  .cat-unknown { background: rgba(139, 148, 158, 0.1); color: var(--text-muted); }
+  .cat-unknown .dot { background: var(--text-muted); }
+
+  .section-note {
+    background: rgba(88, 166, 255, 0.06);
+    border: 1px solid rgba(88, 166, 255, 0.15);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+  }
+
+  .section-note strong { color: var(--accent); }
+
+  .file-path {
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Логирование ошибок OCPP <span>// Red Petroleum EV</span></h1>
+<p class="subtitle">Полная система логирования ошибок: классификация, трейсбеки, сохранение в БД</p>
+
+<!-- Статистика -->
+<div class="stats">
+  <div class="stat-card">
+    <div class="label">Трейсбеки (exc_info)</div>
+    <div class="value green">62</div>
+    <div class="detail">было 6 &rarr; в 10 раз больше покрытие</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Тихие except:pass</div>
+    <div class="value green">0</div>
+    <div class="detail">было 11 &rarr; все заменены</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Классификация ошибок</div>
+    <div class="value green">100%</div>
+    <div class="detail">46 точек: 32 (v1.6) + 14 (v2.0.1)</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Запись ошибок в БД</div>
+    <div class="value orange">10</div>
+    <div class="detail">критические пути пишут в ocpp_event_logs</div>
+  </div>
+</div>
+
+<!-- Вкладки -->
+<div class="tabs">
+  <button class="tab active" onclick="showTab('before-after')">До / После</button>
+  <button class="tab" onclick="showTab('live-logs')">Поток логов</button>
+  <button class="tab" onclick="showTab('db-tables')">Таблицы БД</button>
+  <button class="tab" onclick="showTab('categories')">Категории ошибок</button>
+</div>
+
+<!-- =============== ВКЛАДКА: ДО / ПОСЛЕ =============== -->
+<div id="before-after" class="tab-content active">
+
+<h2>Ошибка StartTransaction</h2>
+<div class="compare">
+  <div class="compare-panel">
+    <div class="compare-header before">Было</div>
+    <div class="log-entry error">
+<span class="log-ts">2026-02-19T14:32:01Z</span> <span class="log-level-error">ERROR</span> OCPP.SIM-TEST
+Ошибка в StartTransaction: таблица "ocpp_transactions" не существует</div>
+    <div class="section-note" style="margin: 12px; border-radius: 6px;">
+      Нет трейсбека. Нет контекста. <strong>Где</strong> проблема? Какая станция? Какой коннектор? Это Redis, БД или валидация?
+    </div>
+  </div>
+  <div class="compare-panel">
+    <div class="compare-header after">Стало</div>
+    <div class="log-entry error">
+<span class="log-ts">2026-02-19T14:32:01Z</span> <span class="log-level-error">ERROR</span> OCPP.SIM-TEST
+Error in StartTransaction [<span class="log-cat">db_error</span>]: station=<span class="log-station">SIM-TEST</span>, connector=<span class="log-highlight">1</span>, id_tag=<span class="log-highlight">996555123456</span>: таблица "ocpp_transactions" не существует</div>
+    <div class="traceback">Traceback (most recent call last):
+  File <span class="tb-file">"ocpp_ws_server/ws_handler.py"</span>, line <span class="tb-line">588</span>, in <span class="tb-func">on_start_transaction</span>
+    transaction = OCPPTransactionService.start_transaction(
+  File <span class="tb-file">"app/crud/ocpp_service.py"</span>, line <span class="tb-line">142</span>, in <span class="tb-func">start_transaction</span>
+    db.execute(insert_query, params)
+  File <span class="tb-file">"sqlalchemy/engine/base.py"</span>, line <span class="tb-line">1380</span>, in <span class="tb-func">execute</span>
+    return self._execute_text(statement, parameters)
+<span class="tb-exc">sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable)
+таблица "ocpp_transactions" не существует</span></div>
+    <div class="section-note" style="margin: 12px; border-radius: 6px;">
+      Полный трейсбек + категория <strong>[db_error]</strong> + контекст (станция, коннектор, тег). Сразу понятно что и где сломалось.
+    </div>
+  </div>
+</div>
+
+<h2>Финансовая ошибка StopTransaction</h2>
+<div class="compare">
+  <div class="compare-panel">
+    <div class="compare-header before">Было</div>
+    <div class="log-entry error">
+<span class="log-ts">2026-02-19T15:10:44Z</span> <span class="log-level-error">ERROR</span> OCPP.CHG-001
+Ошибка автозавершения мобильной сессии abc-123: некорректное значение для Decimal</div>
+    <div class="section-note" style="margin: 12px; border-radius: 6px;">
+      Только текст ошибки. Непонятно — это проблема данных, расчёта или системы.
+    </div>
+  </div>
+  <div class="compare-panel">
+    <div class="compare-header after">Стало</div>
+    <div class="log-entry error">
+<span class="log-ts">2026-02-19T15:10:44Z</span> <span class="log-level-error">ERROR</span> OCPP.CHG-001
+Error in StopTransaction finalize [<span class="log-cat">validation_error</span>]: station=<span class="log-station">CHG-001</span>, session=<span class="log-highlight">abc-123</span>: некорректное значение для Decimal: 'NaN'</div>
+    <div class="traceback">Traceback (most recent call last):
+  File <span class="tb-file">"ocpp_ws_server/ws_handler.py"</span>, line <span class="tb-line">692</span>, in <span class="tb-func">on_stop_transaction</span>
+    energy_consumed = (float(meter_stop) - float(transaction.meter_start)) / 1000.0
+<span class="tb-exc">ValueError: некорректное значение для Decimal: 'NaN'</span></div>
+    <div class="section-note" style="margin: 12px; border-radius: 6px;">
+      Категория <strong>[validation_error]</strong> + сессия + точная строка кода. Видно что meter_stop пришёл как NaN.
+    </div>
+  </div>
+</div>
+
+<h2>Тихое исключение (было except:pass)</h2>
+<div class="compare">
+  <div class="compare-panel">
+    <div class="compare-header before">Было</div>
+    <div class="log-entry debug" style="border-left-color: transparent;">
+<span class="log-dim">          (ничего не логировалось — ошибка проглатывалась молча)</span>
+
+<span class="log-dim">except Exception:</span>
+<span class="log-dim">    pass</span></div>
+    <div class="section-note" style="margin: 12px; border-radius: 6px;">
+      Самый опасный паттерн: ошибка происходит, но <strong>никто о ней не узнаёт</strong>. Отладка становится невозможной.
+    </div>
+  </div>
+  <div class="compare-panel">
+    <div class="compare-header after">Стало</div>
+    <div class="log-entry warn">
+<span class="log-ts">2026-02-19T14:32:01Z</span> <span class="log-level-warn">WARNING</span> OCPP.SIM-TEST
+Не удалось записать OCPP-событие (BootNotification): колонка "processing_time_ms" не существует</div>
+    <div class="traceback" style="border-left-color: var(--orange);">Traceback (most recent call last):
+  File <span class="tb-file">"ocpp_ws_server/ws_handler.py"</span>, line <span class="tb-line">96</span>, in <span class="tb-func">_handle_boot_notification_background</span>
+    OCPPLogService.log_event(db=log_db, ...)
+  File <span class="tb-file">"app/services/log_service.py"</span>, line <span class="tb-line">45</span>, in <span class="tb-func">log_event</span>
+    db.execute(insert_query, params)
+<span class="tb-exc">sqlalchemy.exc.ProgrammingError: колонка "processing_time_ms" не существует</span></div>
+    <div class="section-note" style="margin: 12px; border-radius: 6px;">
+      Теперь все 11 бывших <strong>except:pass</strong> логируют WARNING с трейсбеком. Ошибки видны, но не ломают основной поток.
+    </div>
+  </div>
+</div>
+
+<h2>Ошибка подключения (WebSocket)</h2>
+<div class="compare">
+  <div class="compare-panel">
+    <div class="compare-header before">Было</div>
+    <div class="log-entry error">
+<span class="log-ts">2026-02-19T16:01:12Z</span> <span class="log-level-error">ERROR</span> OCPPHandler.EVB-042
+ОШИБКА ПОДКЛЮЧЕНИЯ: Station EVB-042 (длительность: 0.3с): [Errno 104] Соединение сброшено</div>
+    <div class="log-entry debug">
+<span class="log-ts">2026-02-19T16:01:12Z</span> <span class="log-dim">DEBUG</span> OCPPHandler.EVB-042
+<span class="log-dim">Детальная ошибка для EVB-042:  (трейсбек только на уровне DEBUG!)</span></div>
+    <div class="section-note" style="margin: 12px; border-radius: 6px;">
+      Трейсбек был на уровне DEBUG — <strong>в продакшене его не видно</strong>, т.к. обычно стоит уровень INFO или WARNING.
+    </div>
+  </div>
+  <div class="compare-panel">
+    <div class="compare-header after">Стало</div>
+    <div class="log-entry error">
+<span class="log-ts">2026-02-19T16:01:12Z</span> <span class="log-level-error">ERROR</span> OCPPHandler.EVB-042
+ОШИБКА ПОДКЛЮЧЕНИЯ: Station <span class="log-station">EVB-042</span> (длительность: 0.3с): [Errno 104] Соединение сброшено удалённой стороной</div>
+    <div class="traceback">Traceback (most recent call last):
+  File <span class="tb-file">"ocpp_ws_server/ws_handler.py"</span>, line <span class="tb-line">1655</span>, in <span class="tb-func">handle_connection</span>
+    await self.charge_point.start()
+  File <span class="tb-file">"ocpp/charge_point.py"</span>, line <span class="tb-line">89</span>, in <span class="tb-func">start</span>
+    message = await self._connection.recv()
+<span class="tb-exc">ConnectionResetError: [Errno 104] Соединение сброшено удалённой стороной</span></div>
+    <div class="section-note" style="margin: 12px; border-radius: 6px;">
+      Трейсбек теперь на уровне <strong>ERROR</strong> — всегда виден в продакшен-логах.
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- =============== ВКЛАДКА: ПОТОК ЛОГОВ =============== -->
+<div id="live-logs" class="tab-content">
+
+<h2>Поток логов в продакшене <span class="badge">LIVE</span></h2>
+<p class="section-note">
+  Структурированные JSON-логи записываются в <strong>errors.log</strong> (путь настраивается через переменную <code>LOG_PATH</code>, по умолчанию: <code>/var/log/redpetroleum-ocpp/errors.log</code>).
+  Файл ротируется при 10МБ, хранится 5 резервных копий.
+</p>
+
+<div class="log-panel">
+  <div class="log-header">
+    <span>/var/log/redpetroleum-ocpp/errors.log</span>
+    <span>tail -f</span>
+  </div>
+
+  <div class="log-entry info">
+<span class="log-ts">2026-02-19T08:00:01Z</span> <span class="log-level-info">INFO</span>  OCPP.SIM-TEST  BootNotification: TestModel, TestVendor
+<span class="log-ts">2026-02-19T08:00:01Z</span> <span class="log-level-info">INFO</span>  OCPP.SIM-TEST  Станция SIM-TEST успешно зарегистрирована</div>
+
+  <div class="log-entry info">
+<span class="log-ts">2026-02-19T08:05:00Z</span> <span class="log-level-info">INFO</span>  OCPP.SIM-TEST  StartTransaction: connector=1, id_tag=996555123456, meter_start=0
+<span class="log-ts">2026-02-19T08:05:00Z</span> <span class="log-level-info">INFO</span>  OCPP.SIM-TEST  НАЙДЕН pending session: pending:SIM-TEST:1 -> sess-001
+<span class="log-ts">2026-02-19T08:05:01Z</span> <span class="log-level-info">INFO</span>  OCPP.SIM-TEST  Загружены лимиты: energy = 20.0 для сессии sess-001</div>
+
+  <div class="log-entry info">
+<span class="log-ts">2026-02-19T08:10:00Z</span> <span class="log-level-info">INFO</span>  OCPP.SIM-TEST  ОБНОВЛЕНИЕ ЭНЕРГИИ: 5.230 кВт*ч в сессии sess-001</div>
+
+  <div class="log-entry error">
+<span class="log-ts">2026-02-19T08:15:33Z</span> <span class="log-level-error">ERROR</span> OCPP.CHG-007
+Error in MeterValues [<span class="log-cat">db_error</span>]: station=<span class="log-station">CHG-007</span>, connector=<span class="log-highlight">2</span>: не удалось подключиться к серверу: Соединение отклонено</div>
+  <div class="traceback">Traceback (most recent call last):
+  File <span class="tb-file">"ocpp_ws_server/ws_handler.py"</span>, line <span class="tb-line">843</span>, in <span class="tb-func">on_meter_values</span>
+    OCPPMeterService.add_meter_values(db, self.id, ...)
+  File <span class="tb-file">"app/crud/ocpp_service.py"</span>, line <span class="tb-line">210</span>, in <span class="tb-func">add_meter_values</span>
+    db.execute(insert_query, params)
+<span class="tb-exc">sqlalchemy.exc.OperationalError: (psycopg2.OperationalError)
+не удалось подключиться к серверу: Соединение отклонено
+	Сервер запущен на хосте "localhost" и принимает TCP/IP соединения на порту 5433?</span></div>
+
+  <div class="log-entry error">
+<span class="log-ts">2026-02-19T09:22:17Z</span> <span class="log-level-error">ERROR</span> OCPP.EVB-042
+Error in StopTransaction finalize [<span class="log-cat">financial_error</span>]: station=<span class="log-station">EVB-042</span>, session=<span class="log-highlight">sess-xyz</span>: [<class 'decimal.InvalidOperation'>]</div>
+  <div class="traceback">Traceback (most recent call last):
+  File <span class="tb-file">"ocpp_ws_server/ws_handler.py"</span>, line <span class="tb-line">706</span>, in <span class="tb-func">on_stop_transaction</span>
+    actual_cost = energy_consumed * rate_per_kwh
+<span class="tb-exc">decimal.InvalidOperation: [<class 'decimal.InvalidOperation'>]</span></div>
+
+  <div class="log-entry warn">
+<span class="log-ts">2026-02-19T10:45:02Z</span> <span class="log-level-warn">WARNING</span> OCPP.SIM-TEST
+Не удалось записать OCPP-событие (StatusNotification): нарушение уникального ограничения: ocpp_event_logs.id</div>
+  <div class="traceback" style="border-left-color: var(--orange);">Traceback (most recent call last):
+  File <span class="tb-file">"ocpp_ws_server/ws_handler.py"</span>, line <span class="tb-line">289</span>
+<span class="tb-exc">sqlalchemy.exc.IntegrityError: нарушение уникального ограничения</span></div>
+
+  <div class="log-entry error">
+<span class="log-ts">2026-02-19T11:30:00Z</span> <span class="log-level-error">ERROR</span> OCPPHandler.EVB-042
+Error in Redis command handler [<span class="log-cat">redis_error</span>]: station=<span class="log-station">EVB-042</span>: Ошибка 111 при подключении к redis:6380. Соединение отклонено.</div>
+  <div class="traceback">Traceback (most recent call last):
+  File <span class="tb-file">"ocpp_ws_server/ws_handler.py"</span>, line <span class="tb-line">1670</span>, in <span class="tb-func">_handle_redis_commands</span>
+    async for command in redis_manager.listen_commands(self.station_id):
+  File <span class="tb-file">"ocpp_ws_server/redis_manager.py"</span>, line <span class="tb-line">183</span>, in <span class="tb-func">listen_commands</span>
+    await pubsub.subscribe(channel)
+<span class="tb-exc">redis.exceptions.ConnectionError: Ошибка 111 при подключении к redis:6380. Соединение отклонено.</span></div>
+
+  <div class="log-entry info">
+<span class="log-ts">2026-02-19T14:00:00Z</span> <span class="log-level-info">INFO</span>  OCPP.SIM-TEST  StopTransaction: transaction_id=1739957100, meter_stop=25000
+<span class="log-ts">2026-02-19T14:00:01Z</span> <span class="log-level-info">INFO</span>  OCPP.SIM-TEST  Мобильная сессия sess-001 завершена: 25.000 кВт*ч, 300.00 сом</div>
+
+</div>
+</div>
+
+<!-- =============== ВКЛАДКА: ТАБЛИЦЫ БД =============== -->
+<div id="db-tables" class="tab-content">
+
+<h2>ocpp_event_logs <span class="badge">поле error_message</span></h2>
+<p class="section-note">
+  Поле <strong>error_message</strong> теперь заполняется в ~10 критических путях при ошибках.
+  Раньше оно всегда было <code>NULL</code>.
+</p>
+
+<div class="db-table-wrap">
+<table class="db">
+  <thead>
+    <tr>
+      <th>id</th>
+      <th>station_id</th>
+      <th>event_type</th>
+      <th>direction</th>
+      <th>severity</th>
+      <th>error_message</th>
+      <th>created_at</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1042</td>
+      <td>SIM-TEST</td>
+      <td>BootNotification</td>
+      <td>inbound</td>
+      <td class="sev-info">info</td>
+      <td class="null">NULL</td>
+      <td>2026-02-19 08:00:01</td>
+    </tr>
+    <tr>
+      <td>1043</td>
+      <td>SIM-TEST</td>
+      <td>StartTransaction</td>
+      <td>inbound</td>
+      <td class="sev-info">info</td>
+      <td class="null">NULL</td>
+      <td>2026-02-19 08:05:00</td>
+    </tr>
+    <tr>
+      <td>1044</td>
+      <td>CHG-007</td>
+      <td>MeterValues</td>
+      <td>inbound</td>
+      <td class="sev-error">error</td>
+      <td class="error-cell">[db_error] не удалось подключиться к серверу: Соединение отклонено</td>
+      <td>2026-02-19 08:15:33</td>
+    </tr>
+    <tr>
+      <td>1045</td>
+      <td>EVB-042</td>
+      <td>StopTransaction</td>
+      <td>inbound</td>
+      <td class="sev-error">error</td>
+      <td class="error-cell">[financial_error] ошибка завершения сессии sess-xyz: decimal.InvalidOperation</td>
+      <td>2026-02-19 09:22:17</td>
+    </tr>
+    <tr>
+      <td>1046</td>
+      <td>EVB-042</td>
+      <td>RedisCommandHandler</td>
+      <td>internal</td>
+      <td class="sev-error">error</td>
+      <td class="error-cell">[redis_error] Ошибка 111 при подключении к redis:6380</td>
+      <td>2026-02-19 11:30:00</td>
+    </tr>
+    <tr>
+      <td>1047</td>
+      <td>SIM-TEST</td>
+      <td>StopTransaction</td>
+      <td>inbound</td>
+      <td class="sev-info">info</td>
+      <td class="null">NULL</td>
+      <td>2026-02-19 14:00:00</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2>charging_sessions <span class="badge">+ stop_reason, error_details</span></h2>
+<p class="section-note">
+  Новые поля: <strong>stop_reason</strong> (причина остановки по OCPP) и <strong>error_details</strong> (структурированная информация об ошибке для отладки).
+  Записываются при ошибках завершения сессии и при зависших сессиях.
+</p>
+
+<div class="db-table-wrap">
+<table class="db">
+  <thead>
+    <tr>
+      <th>id</th>
+      <th>station_id</th>
+      <th>status</th>
+      <th>energy</th>
+      <th>amount</th>
+      <th>stop_reason</th>
+      <th>error_details</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>sess-001</td>
+      <td>SIM-TEST</td>
+      <td><span class="status-badge status-stopped">завершена</span></td>
+      <td>25.0</td>
+      <td>300.00</td>
+      <td>Local</td>
+      <td class="null">NULL</td>
+    </tr>
+    <tr>
+      <td>sess-002</td>
+      <td>CHG-007</td>
+      <td><span class="status-badge status-error">ошибка</span></td>
+      <td>0</td>
+      <td>0</td>
+      <td class="null">NULL</td>
+      <td class="error-cell">Станция перезагрузилась до начала транзакции</td>
+    </tr>
+    <tr>
+      <td>sess-xyz</td>
+      <td>EVB-042</td>
+      <td><span class="status-badge status-started">активна</span></td>
+      <td>12.5</td>
+      <td>150.00</td>
+      <td class="null">NULL</td>
+      <td class="error-cell">[financial_error] decimal.InvalidOperation</td>
+    </tr>
+    <tr>
+      <td>sess-004</td>
+      <td>EVB-042</td>
+      <td><span class="status-badge status-error">ошибка</span></td>
+      <td>0</td>
+      <td>0</td>
+      <td class="null">NULL</td>
+      <td class="error-cell">Станция перезагрузилась до начала транзакции (v2.0.1)</td>
+    </tr>
+    <tr>
+      <td>sess-005</td>
+      <td>SIM-TEST</td>
+      <td><span class="status-badge status-stopped">завершена</span></td>
+      <td>8.2</td>
+      <td>98.40</td>
+      <td>EnergyLimitReached</td>
+      <td class="null">NULL</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2>SQL-миграция</h2>
+<div class="log-panel">
+  <div class="log-header">
+    <span>sql/012_session_error_details.sql</span>
+    <span>5 строк</span>
+  </div>
+  <div class="log-entry" style="border-left: 3px solid var(--green);">
+<span class="log-dim">-- 012: Добавление полей отслеживания ошибок в charging_sessions</span>
+
+<span style="color: var(--green);">ALTER TABLE</span> charging_sessions <span style="color: var(--green);">ADD COLUMN IF NOT EXISTS</span> stop_reason <span style="color: var(--cyan);">VARCHAR</span>;
+<span style="color: var(--green);">ALTER TABLE</span> charging_sessions <span style="color: var(--green);">ADD COLUMN IF NOT EXISTS</span> error_details <span style="color: var(--cyan);">TEXT</span>;</div>
+</div>
+
+</div>
+
+<!-- =============== ВКЛАДКА: КАТЕГОРИИ ОШИБОК =============== -->
+<div id="categories" class="tab-content">
+
+<h2>Система классификации ошибок</h2>
+<p class="section-note">
+  Функция-помощник <strong>_classify_error(e)</strong> автоматически определяет категорию ошибки по типу исключения.
+  Применяется во <strong>всех 46 обработчиках</strong> обоих протоколов (v1.6 + v2.0.1) — 100% покрытие.
+</p>
+
+<div class="categories">
+  <span class="cat-tag cat-redis"><span class="dot"></span>redis_error</span>
+  <span class="cat-tag cat-db"><span class="dot"></span>db_error</span>
+  <span class="cat-tag cat-validation"><span class="dot"></span>validation_error</span>
+  <span class="cat-tag cat-financial"><span class="dot"></span>financial_error</span>
+  <span class="cat-tag cat-connection"><span class="dot"></span>connection_error</span>
+  <span class="cat-tag cat-unknown"><span class="dot"></span>unknown_error</span>
+</div>
+
+<div class="db-table-wrap">
+<table class="db">
+  <thead>
+    <tr>
+      <th>Категория</th>
+      <th>Что определяет</th>
+      <th>Пример исключения</th>
+      <th>Что означает</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="cat-tag cat-redis"><span class="dot"></span>redis_error</span></td>
+      <td>Модуль redis.*, тип Redis*</td>
+      <td><code>redis.exceptions.ConnectionError</code></td>
+      <td>Redis не работает или недоступен. Проверьте Docker-контейнер, порт 6380.</td>
+    </tr>
+    <tr>
+      <td><span class="cat-tag cat-db"><span class="dot"></span>db_error</span></td>
+      <td>OperationalError, IntegrityError, ProgrammingError, DatabaseError</td>
+      <td><code>sqlalchemy.exc.OperationalError</code></td>
+      <td>PostgreSQL не работает, не применена миграция или нарушено ограничение.</td>
+    </tr>
+    <tr>
+      <td><span class="cat-tag cat-validation"><span class="dot"></span>validation_error</span></td>
+      <td>ValueError, TypeError, KeyError, ValidationError</td>
+      <td><code>ValueError: некорректное значение</code></td>
+      <td>Некорректные данные от станции или повреждённые данные сессии.</td>
+    </tr>
+    <tr>
+      <td><span class="cat-tag cat-financial"><span class="dot"></span>financial_error</span></td>
+      <td>Decimal*, Overflow, ArithmeticError</td>
+      <td><code>decimal.InvalidOperation</code></td>
+      <td>Ошибка расчёта стоимости зарядки. Проверьте тарифы и показания счётчика.</td>
+    </tr>
+    <tr>
+      <td><span class="cat-tag cat-connection"><span class="dot"></span>connection_error</span></td>
+      <td>ConnectionError, TimeoutError, WebSocket*, ConnectionClosed</td>
+      <td><code>ConnectionResetError</code></td>
+      <td>Станция неожиданно отключилась. Проблема сети или станции.</td>
+    </tr>
+    <tr>
+      <td><span class="cat-tag cat-unknown"><span class="dot"></span>unknown_error</span></td>
+      <td>Всё остальное</td>
+      <td><code>RuntimeError</code></td>
+      <td>Непредвиденная ошибка. Изучите трейсбек для понимания причины.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Где применяется классификация <span class="badge">100%</span></h2>
+<p class="section-note">
+  Классификация <strong>_classify_error()</strong> теперь применяется в <strong>каждом</strong> обработчике обоих протоколов — 32 точки в v1.6 + 14 точек в v2.0.1.
+</p>
+
+<h2 style="margin-top: 16px;">OCPP 1.6 — ws_handler.py (32 точки)</h2>
+<div class="db-table-wrap">
+<table class="db">
+  <thead>
+    <tr>
+      <th>Обработчик</th>
+      <th>Уровень</th>
+      <th>Формат лога</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>BootNotification</td>
+      <td>Tier 1</td>
+      <td><code>Error in BootNotification [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>BootNotification (фон)</td>
+      <td>Tier 1</td>
+      <td><code>Error in BootNotification background [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>Heartbeat</td>
+      <td>Tier 1</td>
+      <td><code>Error in Heartbeat [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>StatusNotification</td>
+      <td>Tier 1</td>
+      <td><code>Error in StatusNotification [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>Authorize</td>
+      <td>Tier 1</td>
+      <td><code>Error in Authorize [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>StartTransaction</td>
+      <td>Tier 1</td>
+      <td><code>Error in StartTransaction [<span class="log-cat">кат.</span>]: station=X, connector=Y, id_tag=Z: ...</code></td>
+    </tr>
+    <tr>
+      <td>StopTransaction</td>
+      <td>Tier 1</td>
+      <td><code>Error in StopTransaction [<span class="log-cat">кат.</span>]: station=X, transaction_id=Y: ...</code></td>
+    </tr>
+    <tr>
+      <td>StopTransaction (finalize)</td>
+      <td>Tier 1</td>
+      <td><code>Error in StopTransaction finalize [<span class="log-cat">кат.</span>]: station=X, session=Y: ...</code></td>
+    </tr>
+    <tr>
+      <td>MeterValues</td>
+      <td>Tier 1</td>
+      <td><code>Error in MeterValues [<span class="log-cat">кат.</span>]: station=X, connector=Y: ...</code></td>
+    </tr>
+    <tr>
+      <td>MeterValues (команда стоп)</td>
+      <td>Tier 1</td>
+      <td><code>Error in MeterValues stop command [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>MeterValues (лимит суммы)</td>
+      <td>Tier 1</td>
+      <td><code>Error in MeterValues amount limit [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>MeterValues (проверка средств)</td>
+      <td>Tier 1</td>
+      <td><code>Error in MeterValues fund check [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>GetConfiguration</td>
+      <td>Tier 2</td>
+      <td><code>Error in GetConfiguration [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>ChangeConfiguration</td>
+      <td>Tier 2</td>
+      <td><code>Error in ChangeConfiguration [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>Reset</td>
+      <td>Tier 2</td>
+      <td><code>Error in Reset [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>UnlockConnector</td>
+      <td>Tier 2</td>
+      <td><code>Error in UnlockConnector [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>DataTransfer</td>
+      <td>Tier 2</td>
+      <td><code>Error in DataTransfer [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>ChangeAvailability</td>
+      <td>Tier 2</td>
+      <td><code>Error in ChangeAvailability [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>ClearCache</td>
+      <td>Tier 2</td>
+      <td><code>Error in ClearCache [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>DiagnosticsStatusNotification</td>
+      <td>Tier 3</td>
+      <td><code>Error in DiagnosticsStatusNotification [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>FirmwareStatusNotification</td>
+      <td>Tier 3</td>
+      <td><code>Error in FirmwareStatusNotification [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>GetDiagnostics</td>
+      <td>Tier 3</td>
+      <td><code>Error in GetDiagnostics [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>UpdateFirmware</td>
+      <td>Tier 3</td>
+      <td><code>Error in UpdateFirmware [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>TriggerMessage</td>
+      <td>Tier 3</td>
+      <td><code>Error in TriggerMessage [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>SendLocalList</td>
+      <td>Tier 3</td>
+      <td><code>Error in SendLocalList [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>GetLocalListVersion</td>
+      <td>Tier 3</td>
+      <td><code>Error in GetLocalListVersion [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>Диагностика ошибок</td>
+      <td>Внутр.</td>
+      <td><code>Error in _perform_error_diagnostics [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>WebSocket подключение</td>
+      <td>Внутр.</td>
+      <td><code>Error in handle_connection [<span class="log-cat">кат.</span>]: station=X (длит.): ...</code></td>
+    </tr>
+    <tr>
+      <td>Выполнение команды Redis</td>
+      <td>Внутр.</td>
+      <td><code>Error executing command TYPE [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>Обработчик команд Redis</td>
+      <td>Внутр.</td>
+      <td><code>Error in Redis command handler [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>Очистка при отключении</td>
+      <td>Внутр.</td>
+      <td><code>Error in cleanup [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2 style="margin-top: 24px;">OCPP 2.0.1 — ws_handler_v201.py (14 точек)</h2>
+<div class="db-table-wrap">
+<table class="db">
+  <thead>
+    <tr>
+      <th>Обработчик</th>
+      <th>Уровень</th>
+      <th>Формат лога</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>BootNotification</td>
+      <td>Tier 1</td>
+      <td><code>Error in BootNotification v201 [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>BootNotification (фон)</td>
+      <td>Tier 1</td>
+      <td><code>Error in BootNotification v201 background [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>Heartbeat</td>
+      <td>Tier 1</td>
+      <td><code>Error in Heartbeat v201 [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>StatusNotification</td>
+      <td>Tier 1</td>
+      <td><code>Error in StatusNotification v201 [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>Authorize</td>
+      <td>Tier 1</td>
+      <td><code>Error in Authorize v201 [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>TransactionEvent (маршрутизатор)</td>
+      <td>Tier 1</td>
+      <td><code>Error in TransactionEvent v201 [<span class="log-cat">кат.</span>] (тип): station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>TransactionEvent.Started</td>
+      <td>Tier 1</td>
+      <td><code>Error in TransactionEvent.Started [<span class="log-cat">кат.</span>]: station=X, tx=Y: ...</code></td>
+    </tr>
+    <tr>
+      <td>TransactionEvent.Updated</td>
+      <td>Tier 1</td>
+      <td><code>Error in TransactionEvent.Updated [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>TransactionEvent.Ended</td>
+      <td>Tier 1</td>
+      <td><code>Error in TransactionEvent.Ended [<span class="log-cat">кат.</span>]: station=X, tx=Y: ...</code></td>
+    </tr>
+    <tr>
+      <td>Завершение сессии</td>
+      <td>Tier 1</td>
+      <td><code>Error finalizing session [<span class="log-cat">кат.</span>]: station=X, session=Y: ...</code></td>
+    </tr>
+    <tr>
+      <td>NotifyEvent</td>
+      <td>Tier 2</td>
+      <td><code>Error in NotifyEvent v201 [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>NotifyReport</td>
+      <td>Tier 2</td>
+      <td><code>Error in NotifyReport v201 [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>Проверка лимита суммы</td>
+      <td>Внутр.</td>
+      <td><code>Error in _check_limits amount [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+    <tr>
+      <td>Проверка средств</td>
+      <td>Внутр.</td>
+      <td><code>Error in _check_limits funds [<span class="log-cat">кат.</span>]: station=X: ...</code></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+</div>
+
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

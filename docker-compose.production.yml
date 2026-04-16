@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  evpower-backend:
+    build: .
+    container_name: evpower-backend
+    restart: unless-stopped
+    stop_grace_period: 30s
+    # Добавляем IPv4 маппинг для Supabase
+    extra_hosts:
+      - "aws-0-eu-west-1.pooler.supabase.com:52.209.89.87"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9210/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    security_opt:
+      - no-new-privileges:true
+    user: "1000:1000"
+    tmpfs:
+      - /tmp
+    labels:
+      - "traefik.enable=true"
+      # Единый роутер для всех запросов
+      - "traefik.http.routers.evpower-backend.rule=Host(`ocpp.charge.redpay.kg`)"
+      - "traefik.http.routers.evpower-backend.entrypoints=websecure"
+      - "traefik.http.routers.evpower-backend.tls=true"
+      - "traefik.http.routers.evpower-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.evpower-backend.loadbalancer.server.port=9210"
+      
+      # WebSocket поддержка для всех путей
+      - "traefik.http.middlewares.evpower-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.evpower-headers.headers.customrequestheaders.X-Forwarded-For="
+      - "traefik.http.routers.evpower-backend.middlewares=evpower-headers"
+      # Дополнительный роутер для ws:// (HTTP) без редиректа
+      - "traefik.http.routers.evpower-backend-web.rule=Host(`ocpp.charge.redpay.kg`)"
+      - "traefik.http.routers.evpower-backend-web.entrypoints=web"
+      - "traefik.http.routers.evpower-backend-web.service=evpower-backend"
+      - "traefik.http.routers.evpower-backend-web.tls=false"
+      - "traefik.http.middlewares.evpower-ws-http.headers.customrequestheaders.X-Forwarded-Proto=http"
+      - "traefik.http.routers.evpower-backend-web.middlewares=evpower-ws-http@docker"
+      
+      # Coolify метки
+      - "coolify.managed=true"
+      - "coolify.version=1.0.0"
+      - "coolify.name=evpower-backend"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - APP_ENV=production
+      - LOG_LEVEL=INFO
+      - WORKERS=1
+    # Стандартная конфигурация без прокси
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - coolify
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory-policy allkeys-lru --maxmemory 256mb --tcp-keepalive 60 --timeout 300 --save 60 1000
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - coolify
+    security_opt:
+      - no-new-privileges:true
+    user: "999:999"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  coolify:
+    external: true 

@@ -1,0 +1,259 @@
+import os
+from typing import Optional, Any
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import model_validator
+
+class Settings(BaseSettings):
+    # Database settings for Supabase
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY", "")
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    SUPABASE_JWKS_URL: str = os.getenv("SUPABASE_JWKS_URL", "")
+    # SUPABASE_JWT_SECRET - используется для валидации HS256 токенов от Supabase Auth
+    # Безопасно, т.к. secret хранится только на server-side (не передается клиенту)
+    SUPABASE_JWT_SECRET: str = os.getenv("SUPABASE_JWT_SECRET", "")
+    CLIENT_FALLBACK_SECRET: str = os.getenv("CLIENT_FALLBACK_SECRET", "")
+    JWT_VERIFY_ISS: str = os.getenv("JWT_VERIFY_ISS", "")  # например: https://<project>.supabase.co/auth/v1
+    JWT_VERIFY_AUD: str = os.getenv("JWT_VERIFY_AUD", "authenticated")
+    
+    # PostgreSQL connection URL for Supabase
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+    
+    # Redis settings
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    REDIS_PASSWORD: Optional[str] = os.getenv("REDIS_PASSWORD")
+    
+    # API settings
+    API_V1_STR: str = "/api/v1"
+    PROJECT_NAME: str = "RedPetroleum OCPP Backend"
+    
+    # Security - аутентификация через FlutterFlow
+    # SECRET_KEY требуется для наших HS256 JWT (cookie-режим)
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
+    
+    # App settings - правильные порты для production
+    APP_ENV: str = os.getenv("APP_ENV", "development")  # development, staging, production
+    ALLOW_DEV_LOGIN: bool = os.getenv("ALLOW_DEV_LOGIN", "false").lower() == "true"
+    APP_HOST: str = os.getenv("APP_HOST", "0.0.0.0")
+    APP_PORT: int = int(os.getenv("APP_PORT", "9210"))  # Production порт
+    
+    # OCPP WebSocket settings (тот же порт что и API)
+    OCPP_WS_PORT: int = int(os.getenv("OCPP_WS_PORT", "9210"))
+    OCPP_PROTOCOL_VERSION: str = os.getenv("OCPP_PROTOCOL_VERSION", "1.6")
+    
+    # CORS для FlutterFlow и внешних приложений
+    ALLOWED_HOSTS: str = os.getenv("ALLOWED_HOSTS", "*")
+    CORS_ORIGINS: str = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:3001,http://localhost:9210,https://redp.charge.redpay.kg,https://ocpp.charge.redpay.kg"
+    )
+    # CSRF доверенные origin'ы (через запятую)
+    CSRF_TRUSTED_ORIGINS: str = os.getenv(
+        "CSRF_TRUSTED_ORIGINS",
+        "https://redp.charge.redpay.kg,https://ocpp.charge.redpay.kg,http://localhost:3000,http://localhost:3001"
+    )
+
+    # Rate limiting
+    RATE_LIMIT_DEFAULT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_DEFAULT_PER_MINUTE", "60"))
+    RATE_LIMIT_CRITICAL_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_CRITICAL_PER_MINUTE", "10"))
+    RATE_LIMIT_WEBHOOK_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_WEBHOOK_PER_MINUTE", "30"))  # Защита webhook от DDoS
+
+    # Swagger UI (включать только при необходимости)
+    ENABLE_SWAGGER: bool = os.getenv("ENABLE_SWAGGER", "false").lower() == "true"
+    
+    # Content Security Policy настройки
+    CSP_CONNECT_SRC: str = os.getenv(
+        "CSP_CONNECT_SRC",
+        "'self' wss://ocpp.charge.redpay.kg https://ocpp.charge.redpay.kg https://redp.charge.redpay.kg https://supabase.charge.redpay.kg wss://supabase.charge.redpay.kg"
+    )
+    CSP_SCRIPT_SRC: str = os.getenv(
+        "CSP_SCRIPT_SRC",
+        "'self' 'unsafe-inline' https://app.flutterflow.io"
+    )
+    
+    # Domain для webhook URLs
+    DOMAIN: str = os.getenv("DOMAIN", "https://ocpp.charge.redpay.kg")
+    
+    # OBANK Payment API Configuration
+    # ⚠️ ВРЕМЕННО ОТКЛЮЧЕНО: OBANK интеграция в разработке, не готова к production
+    # Используется только O!Dengi для платежей
+    OBANK_ENABLED: bool = os.getenv("OBANK_ENABLED", "false").lower() == "true"
+    OBANK_API_URL: str = os.getenv("OBANK_API_URL", "https://test-rakhmet.dengi.kg:4431/external/extended-cert")
+    OBANK_API_URL_HTTP: str = os.getenv("OBANK_API_URL_HTTP", "http://test-rakhmet.dengi.kg:4430/external/extended-cert")  # HTTP альтернатива
+    OBANK_PRODUCTION_API_URL: str = os.getenv("OBANK_PRODUCTION_API_URL", "https://rakhmet.dengi.kg:4431/external/extended-cert")
+    OBANK_POINT_ID: str = os.getenv("OBANK_POINT_ID", "4354")  # Terminal ID
+    OBANK_SERVICE_ID: str = os.getenv("OBANK_SERVICE_ID", "1331")  # Service ID
+    OBANK_CERT_PATH: str = os.getenv("OBANK_CERT_PATH", "")  # Path to PKCS12 certificate
+    OBANK_CERT_PASSWORD: str = os.getenv("OBANK_CERT_PASSWORD", "")  # Certificate password (ОБЯЗАТЕЛЬНО для production!)
+    OBANK_USE_PRODUCTION: bool = os.getenv("OBANK_USE_PRODUCTION", "false").lower() == "true"
+    
+    # OBANK Production настройки
+    OBANK_PROD_POINT_ID: str = os.getenv("OBANK_PROD_POINT_ID", "")
+    OBANK_PROD_SERVICE_ID: str = os.getenv("OBANK_PROD_SERVICE_ID", "")
+    
+    # O!Dengi API Configuration (Legacy support)
+    ODENGI_API_URL: str = os.getenv("ODENGI_API_URL", "https://mw-api-test.dengi.kg/api/json/json.php")
+    ODENGI_PRODUCTION_API_URL: str = os.getenv("ODENGI_PRODUCTION_API_URL", "https://mw-api.dengi.kg/api/json/json.php")
+    ODENGI_MERCHANT_ID: str = os.getenv("ODENGI_MERCHANT_ID", "")
+    ODENGI_PASSWORD: str = os.getenv("ODENGI_PASSWORD", "")
+    ODENGI_WEBHOOK_SECRET: Optional[str] = os.getenv("ODENGI_WEBHOOK_SECRET")
+    ODENGI_USE_PRODUCTION: bool = os.getenv("ODENGI_USE_PRODUCTION", "false").lower() == "true"
+    
+    # O!Dengi Production настройки (получить у O!Dengi при регистрации merchant)
+    ODENGI_PROD_MERCHANT_ID: str = os.getenv("ODENGI_PROD_MERCHANT_ID", "")
+    ODENGI_PROD_PASSWORD: str = os.getenv("ODENGI_PROD_PASSWORD", "")
+
+    # Webhook Security - IP Whitelist
+    # O!Dengi известные IP адреса серверов (обновить при получении от провайдера)
+    ODENGI_WEBHOOK_IPS: str = os.getenv("ODENGI_WEBHOOK_IPS", "")  # Comma-separated IPs
+    # OBANK известные IP адреса серверов (обновить при получении от провайдера)
+    OBANK_WEBHOOK_IPS: str = os.getenv("OBANK_WEBHOOK_IPS", "")  # Comma-separated IPs
+    # Включить IP whitelist проверку (опционально, HMAC подписи достаточно)
+    WEBHOOK_IP_WHITELIST_ENABLED: bool = os.getenv("WEBHOOK_IP_WHITELIST_ENABLED", "false").lower() == "true"
+    
+    # Payment Provider Selection
+    # По умолчанию ODENGI (OBANK временно отключен)
+    PAYMENT_PROVIDER: str = os.getenv("PAYMENT_PROVIDER", "ODENGI")  # ODENGI (production) or OBANK (в разработке)
+    
+    # EZS Payment Settings
+    EZS_SECRET_KEY: str = os.getenv("EZS_SECRET_KEY", "")
+    DEFAULT_CURRENCY: str = os.getenv("DEFAULT_CURRENCY", "KGS")
+    PAYMENT_TIMEOUT_MINUTES: int = int(os.getenv("PAYMENT_TIMEOUT_MINUTES", "30"))
+    
+    # Payment Lifecycle Settings
+    QR_CODE_LIFETIME_MINUTES: int = int(os.getenv("QR_CODE_LIFETIME_MINUTES", "5"))
+    INVOICE_LIFETIME_MINUTES: int = int(os.getenv("INVOICE_LIFETIME_MINUTES", "5"))
+    STATUS_CHECK_INTERVAL_SECONDS: int = int(os.getenv("STATUS_CHECK_INTERVAL_SECONDS", "60"))
+    CLEANUP_INTERVAL_MINUTES: int = int(os.getenv("CLEANUP_INTERVAL_MINUTES", "5"))
+    
+    # Logging
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOG_PATH: str = os.getenv("LOG_PATH", "/var/log/evpower-ocpp")
+
+    # VAPID для Web Push Notifications
+    VAPID_PRIVATE_KEY: str = os.getenv("VAPID_PRIVATE_KEY", "")
+    VAPID_PUBLIC_KEY: str = os.getenv("VAPID_PUBLIC_KEY", "")
+    VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "mailto:noreply@charge.redpay.kg")
+
+    # Wappi.pro - WhatsApp OTP API
+    WAPPI_API_TOKEN: str = os.getenv("WAPPI_API_TOKEN", "")
+    WAPPI_PROFILE_ID: str = os.getenv("WAPPI_PROFILE_ID", "")
+    WAPPI_API_URL: str = os.getenv("WAPPI_API_URL", "https://wappi.pro/api/sync/message/send")
+
+    # Nikita SMS (smspro.nikita.kg) - SMS OTP
+    NIKITA_SMS_LOGIN: str = os.getenv("NIKITA_SMS_LOGIN", "")
+    NIKITA_SMS_PASSWORD: str = os.getenv("NIKITA_SMS_PASSWORD", "")
+    NIKITA_SMS_SENDER: str = os.getenv("NIKITA_SMS_SENDER", "RedPetroleum")
+
+    # Namba One Payment API (merchant-api-docs.rps.kg)
+    # HMAC-SHA512 auth: merchantAccountGuid (в URL) + Secret (для подписи)
+    NAMBA_ONE_BASE_URL: str = os.getenv("NAMBA_ONE_BASE_URL", "https://merchant-api.rps.kg")
+    NAMBA_ONE_MERCHANT_GUID: str = os.getenv("NAMBA_ONE_MERCHANT_GUID", "")  # UUID мерчанта
+    NAMBA_ONE_SECRET: str = os.getenv("NAMBA_ONE_SECRET", "")  # Секрет для HMAC-SHA512
+    NAMBA_ONE_WEBHOOK_SECRET: str = os.getenv("NAMBA_ONE_WEBHOOK_SECRET", "")  # Наш секрет для верификации webhooks
+    NAMBA_ONE_WEBHOOK_IPS: str = os.getenv("NAMBA_ONE_WEBHOOK_IPS", "")  # IP whitelist
+
+    # Keycloak SSO (for staff/admin login)
+    KEYCLOAK_ENABLED: bool = os.getenv("KEYCLOAK_ENABLED", "false").lower() == "true"
+    KEYCLOAK_BASE_URL: str = os.getenv("KEYCLOAK_BASE_URL", "https://sso.asystem.kg")
+    KEYCLOAK_INTERNAL_URL: str = os.getenv("KEYCLOAK_INTERNAL_URL", "")  # For server-to-server (e.g. http://10.10.10.60:8080)
+    KEYCLOAK_REALM: str = os.getenv("KEYCLOAK_REALM", "asystem")
+    KEYCLOAK_CLIENT_ID: str = os.getenv("KEYCLOAK_CLIENT_ID", "redpetroleum")
+    KEYCLOAK_REQUIRED_GROUP: str = os.getenv("KEYCLOAK_REQUIRED_GROUP", "redpetroleum")
+
+    # OTP Settings
+    OTP_CODE_LENGTH: int = int(os.getenv("OTP_CODE_LENGTH", "6"))
+    OTP_TTL_SECONDS: int = int(os.getenv("OTP_TTL_SECONDS", "300"))  # 5 minutes
+    OTP_MAX_ATTEMPTS: int = int(os.getenv("OTP_MAX_ATTEMPTS", "3"))
+    OTP_RATE_LIMIT_SECONDS: int = int(os.getenv("OTP_RATE_LIMIT_SECONDS", "60"))  # 1 code per minute
+
+    # Push Notifications Settings
+    PUSH_NOTIFICATIONS_ENABLED: bool = os.getenv("PUSH_NOTIFICATIONS_ENABLED", "true").lower() == "true"
+    PUSH_MAX_RETRIES: int = int(os.getenv("PUSH_MAX_RETRIES", "3"))
+    PUSH_TTL: int = int(os.getenv("PUSH_TTL", "86400"))  # 24 hours in seconds
+    
+    @property
+    def is_production(self) -> bool:
+        return self.APP_ENV == "production"
+    
+    @property
+    def current_obank_api_url(self) -> str:
+        """Возвращает актуальный URL OBANK API в зависимости от окружения"""
+        if self.OBANK_USE_PRODUCTION:
+            return self.OBANK_PRODUCTION_API_URL
+        else:
+            # Тестовый сервер тоже требует HTTPS, но с отключенной SSL проверкой
+            return self.OBANK_API_URL
+    
+    @property
+    def current_obank_point_id(self) -> str:
+        """Возвращает актуальный Point ID в зависимости от окружения"""
+        return self.OBANK_PROD_POINT_ID if self.OBANK_USE_PRODUCTION else self.OBANK_POINT_ID
+    
+    @property
+    def current_obank_service_id(self) -> str:
+        """Возвращает актуальный Service ID в зависимости от окружения"""
+        return self.OBANK_PROD_SERVICE_ID if self.OBANK_USE_PRODUCTION else self.OBANK_SERVICE_ID
+    
+    @model_validator(mode='after')
+    def validate_settings(self) -> 'Settings':
+        """Валидация обязательных переменных окружения"""
+        missing_vars = []
+        
+        # Базовые переменные проверяем только если они критичны
+        # В production обязателен SECRET_KEY (для подписи наших JWT)
+        if self.is_production and not self.SECRET_KEY:
+            missing_vars.append("SECRET_KEY")
+        
+        # DATABASE_URL должен быть обязательно
+        if not self.DATABASE_URL:
+            missing_vars.append("DATABASE_URL")
+            
+        # Проверяем переменные в зависимости от выбранного провайдера
+        if self.PAYMENT_PROVIDER == "OBANK" and self.OBANK_ENABLED:
+            # OBANK включен - проверяем обязательные переменные
+            if self.OBANK_USE_PRODUCTION:
+                if not self.OBANK_PROD_POINT_ID:
+                    missing_vars.append("OBANK_PROD_POINT_ID")
+                if not self.OBANK_PROD_SERVICE_ID:
+                    missing_vars.append("OBANK_PROD_SERVICE_ID")
+            # Для тестовой среды не требуем сертификат - можем работать без него
+
+        elif self.PAYMENT_PROVIDER == "ODENGI":
+            # O!Dengi обязательные переменные
+            if self.ODENGI_USE_PRODUCTION:
+                if not self.ODENGI_PROD_MERCHANT_ID:
+                    missing_vars.append("ODENGI_PROD_MERCHANT_ID")
+                if not self.ODENGI_PROD_PASSWORD:
+                    missing_vars.append("ODENGI_PROD_PASSWORD")
+            else:
+                if not self.ODENGI_MERCHANT_ID:
+                    missing_vars.append("ODENGI_MERCHANT_ID")
+                if not self.ODENGI_PASSWORD:
+                    missing_vars.append("ODENGI_PASSWORD")
+
+            # КРИТИЧНО: В production webhook должен иметь HMAC secret для проверки подписи
+            if self.is_production and not self.ODENGI_WEBHOOK_SECRET:
+                missing_vars.append("ODENGI_WEBHOOK_SECRET (required for webhook signature verification in production)")
+
+        # Проверка VAPID keys для Push Notifications в production
+        if self.is_production and self.PUSH_NOTIFICATIONS_ENABLED:
+            if not self.VAPID_PRIVATE_KEY or not self.VAPID_PUBLIC_KEY:
+                # Автоматически отключаем push notifications, если нет VAPID keys
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    "⚠️ VAPID keys не настроены в production. "
+                    "Push notifications автоматически отключены. "
+                    "Для включения добавьте VAPID_PRIVATE_KEY и VAPID_PUBLIC_KEY в environment variables."
+                )
+                self.PUSH_NOTIFICATIONS_ENABLED = False
+
+        if missing_vars:
+            raise ValueError(f"❌ Отсутствуют обязательные переменные окружения: {', '.join(missing_vars)}")
+
+        return self
+
+    model_config = SettingsConfigDict(extra="ignore")
+
+settings = Settings() 

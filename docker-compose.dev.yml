@@ -1,0 +1,38 @@
+# Local development stack: PostgreSQL + Redis
+# Usage: docker compose -f docker-compose.dev.yml up -d
+
+services:
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: evpower-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evpower
+      POSTGRES_USER: evpower
+      POSTGRES_PASSWORD: evpower_dev_123
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evpower"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-dev:
+    image: redis:alpine
+    container_name: evpower-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg-dev-data:
+    driver: local

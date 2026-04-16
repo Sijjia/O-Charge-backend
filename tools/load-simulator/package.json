@@ -1,0 +1,20 @@
+{
+  "name": "ocpp-load-simulator",
+  "version": "1.0.0",
+  "description": "OCPP Load Simulator — simulate 10,000+ charging stations simultaneously",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "start:100": "STATIONS=100 tsx src/index.ts",
+    "start:1000": "STATIONS=1000 tsx src/index.ts",
+    "start:10000": "STATIONS=10000 tsx src/index.ts"
+  },
+  "dependencies": {
+    "ws": "^8.18.1",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

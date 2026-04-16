@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:alpine
+    container_name: evpower-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save "" --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - coolify
+
+  evpower-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: evpower-backend
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      # Переопределяем критичные переменные для production
+      APP_ENV: production
+      APP_PORT: 9210
+      OCPP_WS_PORT: 9210
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9210/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - coolify
+    volumes:
+      - ./backend/certificates:/app/certificates:ro
+      - /var/log/evpower-ocpp:/var/log/evpower-ocpp
+    labels:
+      # Метки для Coolify
+      - "coolify.managed=true"
+      - "coolify.type=compose"
+      - "coolify.applicationId=evpower-ocpp"
+      - "coolify.serviceId=evpower-backend"
+      - "coolify.main=true"
+      - "coolify.port=9210"
+      # Explicit Traefik labels для прокси
+      - "traefik.enable=true"
+      - "traefik.http.routers.evpower-backend.rule=Host(`ocpp.charge.redpay.kg`)"
+      - "traefik.http.services.evpower-backend.loadbalancer.server.port=9210"
+      - "traefik.http.routers.evpower-backend.tls=true"
+      - "traefik.http.routers.evpower-backend.tls.certresolver=letsencrypt"
+      # Для WebSocket поддержки OCPP
+      - "traefik.http.middlewares.evpower-ws.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.evpower-backend.middlewares=evpower-ws@docker"
+      # Дополнительный роутер для ws:// (HTTP) без редиректа
+      - "traefik.http.routers.evpower-backend-web.rule=Host(`ocpp.charge.redpay.kg`)"
+      - "traefik.http.routers.evpower-backend-web.entrypoints=web"
+      - "traefik.http.routers.evpower-backend-web.service=evpower-backend"
+      - "traefik.http.routers.evpower-backend-web.tls=false"
+      - "traefik.http.middlewares.evpower-ws-http.headers.customrequestheaders.X-Forwarded-Proto=http"
+      - "traefik.http.routers.evpower-backend-web.middlewares=evpower-ws-http@docker"
+
+networks:
+  coolify:
+    external: true
+
+volumes:
+  redis-data:
+    driver: local
