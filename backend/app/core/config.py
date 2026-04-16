@@ -45,12 +45,12 @@ class Settings(BaseSettings):
     ALLOWED_HOSTS: str = os.getenv("ALLOWED_HOSTS", "*")
     CORS_ORIGINS: str = os.getenv(
         "CORS_ORIGINS",
-        "http://localhost:3000,http://localhost:3001,http://localhost:9210,https://redp.charge.redpay.kg,https://ocpp.charge.redpay.kg"
+        "http://localhost:3000,http://localhost:3001,http://localhost:9210,https://o.asystem.kg,https://ocpp.asystem.kg"
     )
     # CSRF доверенные origin'ы (через запятую)
     CSRF_TRUSTED_ORIGINS: str = os.getenv(
         "CSRF_TRUSTED_ORIGINS",
-        "https://redp.charge.redpay.kg,https://ocpp.charge.redpay.kg,http://localhost:3000,http://localhost:3001"
+        "https://o.asystem.kg,https://ocpp.asystem.kg,http://localhost:3000,http://localhost:3001"
     )
 
     # Rate limiting
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     # Content Security Policy настройки
     CSP_CONNECT_SRC: str = os.getenv(
         "CSP_CONNECT_SRC",
-        "'self' wss://ocpp.charge.redpay.kg https://ocpp.charge.redpay.kg https://redp.charge.redpay.kg https://supabase.charge.redpay.kg wss://supabase.charge.redpay.kg"
+        "'self' wss://ocpp.asystem.kg https://ocpp.asystem.kg https://o.asystem.kg https://sbobank.asystem.kg wss://sbobank.asystem.kg"
     )
     CSP_SCRIPT_SRC: str = os.getenv(
         "CSP_SCRIPT_SRC",
@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     )
     
     # Domain для webhook URLs
-    DOMAIN: str = os.getenv("DOMAIN", "https://ocpp.charge.redpay.kg")
+    DOMAIN: str = os.getenv("DOMAIN", "https://ocpp.asystem.kg")
     
     # OBANK Payment API Configuration
     # ⚠️ ВРЕМЕННО ОТКЛЮЧЕНО: OBANK интеграция в разработке, не готова к production
@@ -133,7 +133,7 @@ class Settings(BaseSettings):
     # VAPID для Web Push Notifications
     VAPID_PRIVATE_KEY: str = os.getenv("VAPID_PRIVATE_KEY", "")
     VAPID_PUBLIC_KEY: str = os.getenv("VAPID_PUBLIC_KEY", "")
-    VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "mailto:noreply@charge.redpay.kg")
+    VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "mailto:noreply@asystem.kg")
 
     # Wappi.pro - WhatsApp OTP API
     WAPPI_API_TOKEN: str = os.getenv("WAPPI_API_TOKEN", "")
@@ -158,8 +158,8 @@ class Settings(BaseSettings):
     KEYCLOAK_BASE_URL: str = os.getenv("KEYCLOAK_BASE_URL", "https://sso.asystem.kg")
     KEYCLOAK_INTERNAL_URL: str = os.getenv("KEYCLOAK_INTERNAL_URL", "")  # For server-to-server (e.g. http://10.10.10.60:8080)
     KEYCLOAK_REALM: str = os.getenv("KEYCLOAK_REALM", "asystem")
-    KEYCLOAK_CLIENT_ID: str = os.getenv("KEYCLOAK_CLIENT_ID", "redpetroleum")
-    KEYCLOAK_REQUIRED_GROUP: str = os.getenv("KEYCLOAK_REQUIRED_GROUP", "redpetroleum")
+    KEYCLOAK_CLIENT_ID: str = os.getenv("KEYCLOAK_CLIENT_ID", "ocharge")
+    KEYCLOAK_REQUIRED_GROUP: str = os.getenv("KEYCLOAK_REQUIRED_GROUP", "ocharge")
 
     # OTP Settings
     OTP_CODE_LENGTH: int = int(os.getenv("OTP_CODE_LENGTH", "6"))

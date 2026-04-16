@@ -52,7 +52,7 @@ services:
       - "coolify.port=9210"
       # Explicit Traefik labels для прокси
       - "traefik.enable=true"
-      - "traefik.http.routers.evpower-backend.rule=Host(`ocpp.charge.redpay.kg`)"
+      - "traefik.http.routers.evpower-backend.rule=Host(`ocpp.asystem.kg`)"
       - "traefik.http.services.evpower-backend.loadbalancer.server.port=9210"
       - "traefik.http.routers.evpower-backend.tls=true"
       - "traefik.http.routers.evpower-backend.tls.certresolver=letsencrypt"
@@ -60,7 +60,7 @@ services:
       - "traefik.http.middlewares.evpower-ws.headers.customrequestheaders.X-Forwarded-Proto=https"
       - "traefik.http.routers.evpower-backend.middlewares=evpower-ws@docker"
       # Дополнительный роутер для ws:// (HTTP) без редиректа
-      - "traefik.http.routers.evpower-backend-web.rule=Host(`ocpp.charge.redpay.kg`)"
+      - "traefik.http.routers.evpower-backend-web.rule=Host(`ocpp.asystem.kg`)"
       - "traefik.http.routers.evpower-backend-web.entrypoints=web"
       - "traefik.http.routers.evpower-backend-web.service=evpower-backend"
       - "traefik.http.routers.evpower-backend-web.tls=false"
