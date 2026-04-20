@@ -203,7 +203,7 @@ async def sso_exchange(
 
         # 4. Find user in users table by email (case-insensitive)
         owner_result = await db.execute(
-            text("SELECT id, email, phone, role, is_active, admin_id FROM users WHERE LOWER(email) = :email LIMIT 1"),
+            text("SELECT id, email, role, is_active, admin_id FROM users WHERE LOWER(email) = :email LIMIT 1"),
             {"email": email},
         )
         owner_row = owner_result.fetchone()

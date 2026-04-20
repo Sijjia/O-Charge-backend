@@ -270,31 +270,36 @@ class PricingService:
         }
     
     def _get_client_pricing(
-        self, 
-        client_id: str, 
+        self,
+        client_id: str,
         station_id: str,
         calculation_time: datetime
     ) -> Optional[PricingResult]:
         """Получает специальный тариф для клиента"""
-        result = self.db.execute(text("""
-            SELECT 
-                ct.tariff_plan_id,
-                ct.discount_percent,
-                ct.fixed_rate_per_kwh,
-                tp.name
-            FROM client_tariffs ct
-            LEFT JOIN tariff_plans tp ON ct.tariff_plan_id = tp.id
-            WHERE ct.client_id = :client_id
-                AND ct.is_active = true
-                AND ct.valid_from <= :now
-                AND (ct.valid_until IS NULL OR ct.valid_until > :now)
-            ORDER BY ct.created_at DESC
-            LIMIT 1
-        """), {
-            "client_id": client_id,
-            "now": calculation_time
-        }).fetchone()
-        
+        try:
+            result = self.db.execute(text("""
+                SELECT
+                    ct.tariff_plan_id,
+                    ct.discount_percent,
+                    ct.fixed_rate_per_kwh,
+                    tp.name
+                FROM client_tariffs ct
+                LEFT JOIN tariff_plans tp ON ct.tariff_plan_id = tp.id
+                WHERE ct.client_id = :client_id
+                    AND ct.is_active = true
+                    AND ct.valid_from <= :now
+                    AND (ct.valid_until IS NULL OR ct.valid_until > :now)
+                ORDER BY ct.created_at DESC
+                LIMIT 1
+            """), {
+                "client_id": client_id,
+                "now": calculation_time
+            }).fetchone()
+        except Exception as e:
+            logger.warning(f"client_tariffs query failed (table may not exist): {e}")
+            self.db.rollback()
+            return None
+
         if not result:
             return None
         

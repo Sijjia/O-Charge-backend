@@ -216,7 +216,7 @@ async def get_me(request: Request, db: Session = Depends(get_db)):
         # 1) Сначала проверяем в users (владельцы/операторы/админы имеют приоритет)
         # Dev-login создаёт запись в clients для owner-юзеров, поэтому users проверяем первым
         owner_row = db.execute(
-            text("SELECT id, email, phone, role, is_active FROM users WHERE id = :id"),
+            text("SELECT id, email, role, is_active FROM users WHERE id = :id"),
             {"id": user_id}
         ).fetchone()
 
@@ -237,7 +237,7 @@ async def get_me(request: Request, db: Session = Depends(get_db)):
                 "client_id": owner_row.id,  # Для совместимости с фронтом
                 "user_id": owner_row.id,
                 "email": owner_row.email,
-                "phone": owner_row.phone,
+                "phone": getattr(owner_row, 'phone', None),
                 "role": owner_row.role,
                 "is_active": owner_row.is_active,
                 "stations_count": stats.stations_count if stats else 0,
