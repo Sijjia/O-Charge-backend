@@ -313,17 +313,22 @@ class GuestChargingService:
     async def cancel_expired_sessions(db, timeout_minutes: int = 15) -> int:
         """Отменить гостевые сессии, не оплаченные в течение timeout_minutes.
         Возвращает количество отменённых сессий."""
-        result = db.execute(
-            text("""
-                UPDATE guest_sessions SET status = 'cancelled'
-                WHERE status = 'pending'
-                  AND created_at < NOW() - INTERVAL :timeout
-                RETURNING id
-            """),
-            {"timeout": f"{timeout_minutes} minutes"},
-        )
-        cancelled = result.fetchall()
-        if cancelled:
-            db.commit()
-            logger.info(f"[Guest] Отменено {len(cancelled)} просроченных сессий (>{timeout_minutes} мин)")
-        return len(cancelled)
+        try:
+            result = db.execute(
+                text("""
+                    UPDATE guest_sessions SET status = 'cancelled'
+                    WHERE status = 'pending'
+                      AND created_at < NOW() - INTERVAL :timeout
+                    RETURNING id
+                """),
+                {"timeout": f"{timeout_minutes} minutes"},
+            )
+            cancelled = result.fetchall()
+            if cancelled:
+                db.commit()
+                logger.info(f"[Guest] Отменено {len(cancelled)} просроченных сессий (>{timeout_minutes} мин)")
+            return len(cancelled)
+        except Exception as e:
+            logger.warning(f"[Guest] cancel_expired_sessions failed (table may not exist): {e}")
+            db.rollback()
+            return 0

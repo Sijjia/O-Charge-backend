@@ -24,8 +24,8 @@ def get_engine():
             future=True,
             pool_pre_ping=True,  # Проверка соединений перед использованием
             pool_recycle=300,    # Обновление соединений каждые 5 минут
-            pool_size=3,         # Размер пула соединений (меньше для SSH-туннеля)
-            max_overflow=5,      # Максимальное количество дополнительных соединений
+            pool_size=10,        # Размер пула соединений
+            max_overflow=10,     # Максимальное количество дополнительных соединений
             pool_timeout=30,     # Таймаут ожидания соединения из пула (сек)
             connect_args={"options": "-c statement_timeout=30000"},
         )
@@ -76,8 +76,8 @@ def get_async_engine():
             echo=False,
             pool_pre_ping=True,
             pool_recycle=300,
-            pool_size=3,
-            max_overflow=5,
+            pool_size=10,
+            max_overflow=10,
             pool_timeout=30,
             connect_args={"server_settings": {"statement_timeout": "30000"}},
         )
