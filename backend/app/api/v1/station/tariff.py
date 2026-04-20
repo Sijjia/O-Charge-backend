@@ -48,7 +48,7 @@ async def get_station_tariff(
     if station[3]:
         rules = db.execute(text("""
             SELECT name, time_start, time_end, price, tariff_type,
-                   connector_type, is_weekend, days_of_week, priority
+                   connector_type, is_weekend, priority
             FROM tariff_rules
             WHERE tariff_plan_id = :plan_id AND is_active = true
             ORDER BY priority DESC, time_start
