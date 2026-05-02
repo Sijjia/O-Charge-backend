@@ -45,12 +45,12 @@ class Settings(BaseSettings):
     ALLOWED_HOSTS: str = os.getenv("ALLOWED_HOSTS", "*")
     CORS_ORIGINS: str = os.getenv(
         "CORS_ORIGINS",
-        "http://localhost:3000,http://localhost:3001,http://localhost:9210,https://o.asystem.kg,https://ocpp.asystem.kg"
+        "http://localhost:3000,http://localhost:3001,http://localhost:9210,https://o.asystem.ai,https://ocpp.asystem.ai"
     )
     # CSRF доверенные origin'ы (через запятую)
     CSRF_TRUSTED_ORIGINS: str = os.getenv(
         "CSRF_TRUSTED_ORIGINS",
-        "https://o.asystem.kg,https://ocpp.asystem.kg,http://localhost:3000,http://localhost:3001"
+        "https://o.asystem.ai,https://ocpp.asystem.ai,http://localhost:3000,http://localhost:3001"
     )
 
     # Rate limiting
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     # Content Security Policy настройки
     CSP_CONNECT_SRC: str = os.getenv(
         "CSP_CONNECT_SRC",
-        "'self' wss://ocpp.asystem.kg https://ocpp.asystem.kg https://o.asystem.kg https://sbobank.asystem.kg wss://sbobank.asystem.kg"
+        "'self' wss://ocpp.asystem.ai https://ocpp.asystem.ai https://o.asystem.ai https://sbobank.asystem.kg wss://sbobank.asystem.kg"
     )
     CSP_SCRIPT_SRC: str = os.getenv(
         "CSP_SCRIPT_SRC",
@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     )
     
     # Domain для webhook URLs
-    DOMAIN: str = os.getenv("DOMAIN", "https://ocpp.asystem.kg")
+    DOMAIN: str = os.getenv("DOMAIN", "https://ocpp.asystem.ai")
     
     # OBANK Payment API Configuration
     # ⚠️ ВРЕМЕННО ОТКЛЮЧЕНО: OBANK интеграция в разработке, не готова к production
