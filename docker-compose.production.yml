@@ -6,6 +6,8 @@ services:
     container_name: evpower-backend
     restart: unless-stopped
     stop_grace_period: 30s
+    ports:
+      - "127.0.0.1:18900:9210"
     # Добавляем IPv4 маппинг для Supabase
     extra_hosts:
       - "aws-0-eu-west-1.pooler.supabase.com:52.209.89.87"
