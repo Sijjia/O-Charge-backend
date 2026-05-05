@@ -1,6 +1,8 @@
-# O!Charge — деплой с нуля
+# AsCharge — деплой с нуля
 
-Полная инструкция как развернуть O!Charge на чистом сервере (как было сделано на Orion 2026-05-02). Покрывает PWA + Backend (FastAPI/OCPP) + Self-hosted Supabase.
+Полная инструкция как развернуть AsCharge на чистом сервере (как было сделано на Orion 2026-05-02). Покрывает PWA + Backend (FastAPI/OCPP) + Self-hosted Supabase.
+
+> AsCharge — название самой системы (платформы). Под конкретного клиента (например O!Charge × O!Bank) меняется только бренд PWA, инфра и ядро остаются те же.
 
 ---
 
@@ -9,7 +11,7 @@
 ```
 Caddy (host) :80/:443  ←  Let's Encrypt автомат
    │
-   ├─ o.asystem.ai      → 127.0.0.1:14084 → ocharge-pwa (Vite SPA)
+   ├─ o.asystem.ai      → 127.0.0.1:14084 → ascharge-pwa (Vite SPA)
    ├─ ocpp.asystem.ai   → 127.0.0.1:18900 → evpower-backend (FastAPI+Redis, WSS OCPP)
    └─ supabase.asystem.ai → 127.0.0.1:18800 → supabase-kong → 14 контейнеров Supabase
 
@@ -178,7 +180,7 @@ sudo caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 
 ---
 
-## 6. Coolify project «OCharge»
+## 6. Coolify project «AsCharge»
 
 Через UI или API. Через API:
 
@@ -189,7 +191,7 @@ COOL=https://c.<домен>
 # 6.1. Project
 PROJ=$(curl -s -X POST -H "Authorization: Bearer $CO" -H "Content-Type: application/json" \
   $COOL/api/v1/projects \
-  -d '{"name":"OCharge","description":"O Charge"}' | jq -r .uuid)
+  -d '{"name":"AsCharge","description":"AsCharge"}' | jq -r .uuid)
 echo "PROJECT=$PROJ"
 
 SERVER=<server-uuid-из-Coolify>
@@ -206,7 +208,7 @@ SB=$(curl -s -X POST -H "Authorization: Bearer $CO" -H "Content-Type: applicatio
   $COOL/api/v1/services \
   -d "{
     \"type\":\"supabase\",
-    \"name\":\"ocharge-supabase\",
+    \"name\":\"ascharge-supabase\",
     \"project_uuid\":\"$PROJ\",
     \"environment_name\":\"$ENV\",
     \"server_uuid\":\"$SERVER\",
@@ -349,7 +351,7 @@ BE=$(curl -s -X POST -H "Authorization: Bearer $CO" -H "Content-Type: applicatio
     \"git_branch\":\"main\",
     \"build_pack\":\"dockercompose\",
     \"docker_compose_location\":\"/docker-compose.production.yml\",
-    \"name\":\"ocharge-backend\",
+    \"name\":\"ascharge-backend\",
     \"ports_exposes\":\"9210\",
     \"instant_deploy\":false
   }" | jq -r .uuid)
@@ -507,7 +509,7 @@ PWA=$(curl -s -X POST -H "Authorization: Bearer $CO" -H "Content-Type: applicati
     \"git_repository\":\"https://github.com/Sijjia/O-Charge-pwa\",
     \"git_branch\":\"main\",
     \"build_pack\":\"nixpacks\",
-    \"name\":\"ocharge-pwa\",
+    \"name\":\"ascharge-pwa\",
     \"ports_exposes\":\"3000\",
     \"domains\":\"https://o.<домен>\",
     \"instant_deploy\":false
@@ -608,7 +610,7 @@ curl -s -H "apikey: $ANON" "https://supabase.$DOMAIN/rest/v1/locations?limit=1"
 | Caddy config | `/etc/caddy/Caddyfile` + `/etc/caddy/conf.d/*.conf` |
 | Supabase env | `/data/coolify/services/<SB-UUID>/.env` |
 | Логи прокси | `/var/log/caddy/*.log` |
-| Логи backend | `coolify panel → ocharge-backend → Logs` или `docker logs <container>` |
+| Логи backend | `coolify panel → ascharge-backend → Logs` или `docker logs <container>` |
 
 ---
 
