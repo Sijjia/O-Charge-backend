@@ -183,10 +183,26 @@ class OCPPTransactionService:
         transaction.stop_timestamp = timestamp
         transaction.stop_reason = stop_reason
         transaction.status = "Stopped"
-        
+
         db.commit()
         db.refresh(transaction)
-        
+
+        # Eagerly load attributes that callers access AFTER session close.
+        # Without this, accessing transaction.charging_session_id outside the
+        # session raises "Instance is not bound to a Session".
+        _ = (
+            transaction.id,
+            transaction.charging_session_id,
+            transaction.connector_id,
+            transaction.meter_start,
+            transaction.meter_stop,
+        )
+        try:
+            from sqlalchemy.orm import make_transient_to_detached
+            db.expunge(transaction)
+        except Exception:
+            pass
+
         logger.info(f"OCPP Transaction stopped: {transaction_id} for station {station_id}")
         return transaction
     
