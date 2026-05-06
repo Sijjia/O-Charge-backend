@@ -137,7 +137,7 @@ async def list_operators(request: Request, db: Session = Depends(get_db)):
         # Superadmin видит всех операторов
         rows = db.execute(
             text("""
-                SELECT u.id, u.phone, c.name, u.is_active
+                SELECT u.id, c.phone, c.name, u.is_active
                 FROM users u
                 LEFT JOIN clients c ON c.id = u.id
                 WHERE u.role = 'operator'
@@ -148,7 +148,7 @@ async def list_operators(request: Request, db: Session = Depends(get_db)):
         # Admin видит только своих операторов
         rows = db.execute(
             text("""
-                SELECT u.id, u.phone, c.name, u.is_active
+                SELECT u.id, c.phone, c.name, u.is_active
                 FROM users u
                 LEFT JOIN clients c ON c.id = u.id
                 WHERE u.admin_id = :admin_id AND u.role = 'operator'
